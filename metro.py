@@ -10,34 +10,45 @@ from keras.optimizers import RMSprop
 from IPython.display import clear_output
 
 #Number of metro stations
-numStations = 4
+numStations = 10
 
-
-#init our Q Matrix
-
-def initQ():
-    Q = np.zeros((numStations,numStations))
-    return Q
 
 #def our states, we have numStations possible states with each station
 #having 1 - numStations possible actions
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
 #for now, the target station is D. We will start at A
 def initState():
-    goal = 1
-    state = np.zeros(4)
-    station = random.randint(0,3)
+    goal = 5
+    state = np.zeros(numStations)
+    station = random.randint(0,numStations-1)
     while station == goal:
-        station = random.randint(0,3)
+        station = random.randint(0,numStations-1)
     state[station] = 1
     #state = np.array([1,0,0,0])
     return state
 
-def initRewardM():
-    rM = np.array((   [ -1,  -10,   -1,  -1],
+def initRewardM(targetStation):
+    ''' 
+rM = np.array((   [ -1,  -10,   -1,  -1],
                       [-10,  10,  -10,  -1],
                       [ -1,  -10,   -1,  -1],
                       [ -1,  10,   -1,  -1]))
+    '''
+        #             1   2   3    4   5   6   7   8   9   10
+    rM = np.array(( [ -1, -1,-10,-10,-10,-10, -1,-10,-10,-10],  #1
+                    [ -1, -1,-10,-10,-10,-10,-10, -1,-10,-10],  #2
+                    [-10,-10, -1, -1, -1, 10,-10,-10,-10,-10],  #3
+                    [-10,-10, -1, -1,-10,-10, -1,-10, -1,-10],  #4
+                    [-10,-10, -1,-10, -1,-10,-10,-10, -1,-10],  #5
+                    [-10,-10, -1,-10,-10, 10,-10, -1,-10,-10],  #6
+                    [ -1,-10,-10, -1,-10,-10, -1,-10,-10,-10],  #7
+                    [-10, -1,-10,-10,-10, 10,-10, -1,-10,-10],  #8
+                    [-10,-10,-10,-10, -1,-10,-10,-10, -1, -1],  #9
+                    [-10,-10,-10,-10,-10,-10,-10,-10, -1, -1],  #10
+                ))    
+    #now, for every -1 in the target station column, change it to a 10
+    #we actuall hard coded to station 6 for now
+    
     return rM 
 
 
@@ -82,7 +93,7 @@ def getReward(state,action,rM):
         return -1
 
 state = initState()
-rM = initRewardM()
+rM = initRewardM(6)
 
 print("init state: ",state)
 state = makeMove(state, 1, rM);
@@ -127,7 +138,7 @@ model.compile(loss='mse', optimizer=rms)
 #just to show an example output; read outputs left to right: up/down/left/right
 
 model.compile(loss='mse', optimizer=rms)#reset weights of neural network
-epochs = 100
+epochs = 1000
 gamma = 0.975
 epsilon = 1
 batchSize = 40
@@ -136,7 +147,7 @@ replay = []
 #stores tuples of (S, A, R, S')
 h = 0
 for i in range(epochs):
-    rM = initRewardM()
+    rM = initRewardM(6)
     state = initState() #using the harder state initialization function
     status = 1
     #while game still in progress
@@ -206,7 +217,7 @@ def testAlgo():
     status = 1
     #while game still in progress
     while(status == 1):
-        qval = model.predict(state.reshape(1,4), batch_size=1)
+        qval = model.predict(state.reshape(1,numStations), batch_size=1)
         print(qval)
         action = (np.argmax(qval)) #take action with highest Q-value
         print('Move #: %s; Taking action: %s' % (i, action))
@@ -217,6 +228,8 @@ def testAlgo():
         if reward != -1:
             status = 0
             print("Reward: %s" % (reward,))
+            if reward == 10:
+                print ("___________VICTORY_________")
         i += 1 #If we're taking more than 10 actions, just stop, we probably can't win this game
         if (i > 10):
             print("Game lost; too many moves.")
@@ -227,6 +240,8 @@ def testAlgo():
 
 # In[30]:
 
+testAlgo()
+testAlgo()
 testAlgo()
 testAlgo()
 testAlgo()
