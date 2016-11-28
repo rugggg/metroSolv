@@ -106,7 +106,7 @@ def getReward(state,action,rM):
     if r == 10:
         return 10
     else:
-        return -1
+        return r
 
 state = initState()
 rM = initRewardM(2)
@@ -214,7 +214,7 @@ for i in range(epochs):
             print("Game #: %s" % (i,))
             model.fit(X_train, y_train, batch_size=batchSize, nb_epoch=1, verbose=1)
             state = new_state
-        if reward != 10: #if reached terminal state, update game status
+        if reward == 10: #if reached terminal state, update game status
             status = 0
         clear_output(wait=True)
     if epsilon > 0.1: #decrement epsilon over time
