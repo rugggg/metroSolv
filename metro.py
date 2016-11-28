@@ -11,25 +11,24 @@ from IPython.display import clear_output
 
 #Number of metro stations
 numStations = 62
-
-
+goal = 38
 #def our states, we have numStations possible states with each station
 #having 1 - numStations possible actions
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
 #for now, the target station is D. We will start at A
 def initState():
-    state = np.zeros(numStations)
-    state[0] = 1
+    state = np.zeros((2,numStations))
+    state[0,1] = 1 #place player at station 1 for simplicity
+    state[1,goal] = 1 #place goal
     return state
 
-def initStateRand():
-    goal = 5
-    state = np.zeros(numStations)
+def initStateRand(goal):
+    state = np.zeros((2,numStations))
     station = random.randint(0,numStations-1)
     while station == goal:
         station = random.randint(0,numStations-1)
-    state[station] = 1
-    #state = np.array([1,0,0,0])
+    state[0,station] = 1
+    state[1,goal] = 1
     return state
 
 
@@ -72,7 +71,7 @@ def initRewardM(targetStation):
 
 def getCurrentStation(state):
     for i in range(0,numStations):
-        if(state[i] == 1):
+        if(state[0,i] == 1):
             return i;
 
 def isValidMove(state,action,rM):
@@ -82,7 +81,6 @@ def isValidMove(state,action,rM):
     if(rM[curStation,action] == -10):
         return False
     else:
-#        print("true")
         return True
 
 def makeMove(state, action, rM):
@@ -93,8 +91,8 @@ def makeMove(state, action, rM):
     #check to see if we can make the move
     if isValidMove(state,action, rM):
         #reset our current station
-        state = np.zeros(numStations)    
-        state[action] = 1
+        state[0] = np.zeros(numStations)    
+        state[0,action] = 1
     return state
 
 def getReward(state,action,rM):
@@ -109,31 +107,25 @@ def getReward(state,action,rM):
         return r
 
 state = initState()
-rM = initRewardM(2)
+rM = initRewardM(goal)
 
 print("init state: ",state)
-state = makeMove(state, 1, rM);
-print("new state: ",state)
-print("reward: ",getReward(state,1,rM))
-
-print("next state: ",state)
-state = makeMove(state, 3, rM);
-print("new state: ",state)
-print("reward: ",getReward(state,3,rM))
-
-print("next state: ",state)
-state = makeMove(state, 1, rM);
+state = makeMove(state, 27, rM);
 print("new state: ",state)
 print("reward: ",getReward(state,1,rM))
 
 
 
+#np.set_printoptions(threshold=np.inf)
+
+
+#print(state[3,1])
 #ok, now some fun Q learning things
 
 
 
 model = Sequential()
-model.add(Dense(120, init='lecun_uniform', input_shape=(numStations,)))
+model.add(Dense(164, init='lecun_uniform', input_shape=(numStations*2,)))
 model.add(Activation('relu'))
 #model.add(Dropout(0.2)) I'm not using dropout, but maybe you wanna give it a try?
 
@@ -163,14 +155,14 @@ replay = []
 #stores tuples of (S, A, R, S')
 h = 0
 for i in range(epochs):
-    rM = initRewardM(2)
+    rM = initRewardM(goal)
     state = initState() #using the harder state initialization function
     status = 1
     #while game still in progress
     while(status == 1):
         #We are in state S
         #Let's run our Q function on S to get Q values for all possible actions
-        qval = model.predict(state.reshape(1,numStations), batch_size=1)
+        qval = model.predict(state.reshape(1,numStations*2), batch_size=1)
         if (random.random() < epsilon): #choose random action
             action = np.random.randint(0,numStations)
         else: #choose best action from Q(s,a) values
@@ -196,8 +188,9 @@ for i in range(epochs):
             for memory in minibatch:
                 #Get max_Q(S',a)
                 old_state, action, reward, new_state = memory
-                old_qval = model.predict(old_state.reshape(1,numStations), batch_size=1)
-                newQ = model.predict(new_state.reshape(1,numStations), batch_size=1)
+                old_qval = model.predict(old_state.reshape(1,numStations*2), batch_size=1)
+                newQ = model.predict(new_state.reshape(1,numStations*2), batch_size=1)
+                print(newQ)
                 maxQ = np.max(newQ)
                 y = np.zeros((1,numStations))
                 y[:] = old_qval[:]
@@ -206,7 +199,7 @@ for i in range(epochs):
                 else: #terminal state
                     update = reward
                 y[0][action] = update
-                X_train.append(old_state.reshape(numStations,))
+                X_train.append(old_state.reshape(numStations*2,))
                 y_train.append(y.reshape(numStations,))
             
             X_train = np.array(X_train)
@@ -233,7 +226,7 @@ def testAlgo():
     status = 1
     #while game still in progress
     while(status == 1):
-        qval = model.predict(state.reshape(1,numStations), batch_size=1)
+        qval = model.predict(state.reshape(1,numStations*2), batch_size=1)
         print(qval)
         action = (np.argmax(qval)) #take action with highest Q-value
         print('Move #: %s; Taking action: %s' % (i, action))
@@ -241,16 +234,14 @@ def testAlgo():
         print(state)
         reward = getReward(state,action,rM)
         print("got reward: ",reward)
-        if reward != -1:
+        if reward == 10:
             status = 0
             print("Reward: %s" % (reward,))
-            if reward == 10:
-                print ("___________VICTORY_________")
+            print ("___________VICTORY_________")
         i += 1 #If we're taking more than 10 actions, just stop, we probably can't win this game
-        if (i > 100):
+        if (i > 10):
             print("Game lost; too many moves.")
             break
-    print(rM)
 
 
 
@@ -258,4 +249,9 @@ def testAlgo():
 
 # In[30]:
 
+testAlgo()
+testAlgo()
+testAlgo()
+testAlgo()
+testAlgo()
 testAlgo()
