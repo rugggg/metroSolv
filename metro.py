@@ -10,7 +10,7 @@ from keras.optimizers import RMSprop
 from IPython.display import clear_output
 
 #Number of metro stations
-numStations = 10
+numStations = 62
 
 
 #def our states, we have numStations possible states with each station
@@ -18,6 +18,11 @@ numStations = 10
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
 #for now, the target station is D. We will start at A
 def initState():
+    state = np.zeros(numStations)
+    state[0] = 1
+    return state
+
+def initStateRand():
     goal = 5
     state = np.zeros(numStations)
     station = random.randint(0,numStations-1)
@@ -27,14 +32,16 @@ def initState():
     #state = np.array([1,0,0,0])
     return state
 
+
 def initRewardM(targetStation):
     ''' 
-rM = np.array((   [ -1,  -10,   -1,  -1],
+    rM = np.array((   [ -1,  -10,   -1,  -1],
                       [-10,  10,  -10,  -1],
                       [ -1,  -10,   -1,  -1],
                       [ -1,  10,   -1,  -1]))
     '''
-        #             1   2   3    4   5   6   7   8   9   10
+    ''' a hand encoded matrix    
+    #             1   2   3    4   5   6   7   8   9   10
     rM = np.array(( [ -1, -1,-10,-10,-10,-10, -1,-10,-10,-10],  #1
                     [ -1, -1,-10,-10,-10,-10,-10, -1,-10,-10],  #2
                     [-10,-10, -1, -1, -1, 10,-10,-10,-10,-10],  #3
@@ -46,9 +53,20 @@ rM = np.array((   [ -1,  -10,   -1,  -1],
                     [-10,-10,-10,-10, -1,-10,-10,-10, -1, -1],  #9
                     [-10,-10,-10,-10,-10,-10,-10,-10, -1, -1],  #10
                 ))    
+    '''
+    #ok but let's actually use a csv file, so it can be larger and more
+    #editable
+    rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
+
+
     #now, for every -1 in the target station column, change it to a 10
-    #we actuall hard coded to station 6 for now
     
+
+    col = rM[:,targetStation]
+
+    for i in range (0,len(col)):
+        if col[i] == -1:
+            col[i] = 10
     return rM 
 
 
@@ -61,9 +79,7 @@ def isValidMove(state,action,rM):
     #remember the shape of our state means the top row is
     #just the 
     curStation = getCurrentStation(state)
-#    print("Checking valid sq: ",curStation,action)
     if(rM[curStation,action] == -10):
-#        print("false")
         return False
     else:
 #        print("true")
@@ -93,7 +109,7 @@ def getReward(state,action,rM):
         return -1
 
 state = initState()
-rM = initRewardM(6)
+rM = initRewardM(2)
 
 print("init state: ",state)
 state = makeMove(state, 1, rM);
@@ -138,7 +154,7 @@ model.compile(loss='mse', optimizer=rms)
 #just to show an example output; read outputs left to right: up/down/left/right
 
 model.compile(loss='mse', optimizer=rms)#reset weights of neural network
-epochs = 1000
+epochs = 3000
 gamma = 0.975
 epsilon = 1
 batchSize = 40
@@ -147,7 +163,7 @@ replay = []
 #stores tuples of (S, A, R, S')
 h = 0
 for i in range(epochs):
-    rM = initRewardM(6)
+    rM = initRewardM(2)
     state = initState() #using the harder state initialization function
     status = 1
     #while game still in progress
@@ -231,18 +247,15 @@ def testAlgo():
             if reward == 10:
                 print ("___________VICTORY_________")
         i += 1 #If we're taking more than 10 actions, just stop, we probably can't win this game
-        if (i > 10):
+        if (i > 100):
             print("Game lost; too many moves.")
             break
+    print(rM)
+
 
 
 # Alright, so I've empirically tested this and it trains on the easy variant with just 1000 epochs (keep in mind every epoch is a full game played to completion). Below I've implemented a function we can use to test our trained algorithm to see if it has properly learned how to play the game. It basically just uses the neural network model to calculate action-values for the current state and selects the action with the highest Q-value. It just repeats this forever until the game is won or lost. I've made it break out of this loop if it is making more than 10 moves because this probably means it hasn't learned how to win and we don't want an infinite loop running.
 
 # In[30]:
 
-testAlgo()
-testAlgo()
-testAlgo()
-testAlgo()
-testAlgo()
 testAlgo()
