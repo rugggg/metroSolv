@@ -10,8 +10,8 @@ from keras.optimizers import RMSprop
 from IPython.display import clear_output
 
 #Number of metro stations
-numStations = 62
-goal = 38
+numStations = 7
+goal = 3
 #def our states, we have numStations possible states with each station
 #having 1 - numStations possible actions
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
@@ -22,7 +22,7 @@ def initState():
     state[1,goal] = 1 #place goal
     return state
 
-def initStateRand(goal):
+def initStateRand():
     state = np.zeros((2,numStations))
     station = random.randint(0,numStations-1)
     while station == goal:
@@ -40,6 +40,7 @@ def initRewardM(targetStation):
                       [ -1,  10,   -1,  -1]))
     '''
     ''' a hand encoded matrix    
+
     #             1   2   3    4   5   6   7   8   9   10
     rM = np.array(( [ -1, -1,-10,-10,-10,-10, -1,-10,-10,-10],  #1
                     [ -1, -1,-10,-10,-10,-10,-10, -1,-10,-10],  #2
@@ -55,17 +56,24 @@ def initRewardM(targetStation):
     '''
     #ok but let's actually use a csv file, so it can be larger and more
     #editable
-    rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
+    #rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
+    rM = np.genfromtxt('small.csv',delimiter=',')
 
 
     #now, for every -1 in the target station column, change it to a 10
     
-
+    print(rM)
     col = rM[:,targetStation]
+    row = rM[targetStation,:]
+    print("col ",targetStation,col)
+    print("row ",targetStation,row)
+    
 
     for i in range (0,len(col)):
-        if col[i] == -1:
+         if col[i] == -1:
             col[i] = 10
+         if row[i] == -1:
+            row[i] = 10
     return rM 
 
 
@@ -78,6 +86,8 @@ def isValidMove(state,action,rM):
     #remember the shape of our state means the top row is
     #just the 
     curStation = getCurrentStation(state)
+    print("validate move from ",curStation," to ",action)
+    print(rM[curStation,action])
     if(rM[curStation,action] == -10):
         return False
     else:
@@ -91,6 +101,7 @@ def makeMove(state, action, rM):
     #check to see if we can make the move
     if isValidMove(state,action, rM):
         #reset our current station
+        print("valid move")
         state[0] = np.zeros(numStations)    
         state[0,action] = 1
     return state
@@ -104,16 +115,46 @@ def getReward(state,action,rM):
     if r == 10:
         return 10
     else:
-        return r
+        return -1
 
-state = initState()
+def getRandomAction(state,rM):
+    #get all items in the row that are
+    print("gettin random action...")
+    print(state)
+    print(rM)
+
+    index = getCurrentStation(state)
+    print("current: ",index)
+    actionSpace = []
+    possible = rM[:,index]
+    print(possible)
+    for i in range(0,len(possible)):
+        if(possible[i] != -10):
+            print("hit: ",i)
+            actionSpace.append(i)
+    return random.choice(actionSpace)
+
+
+
+
+#state = initState()
+
+#rM = initRewardM(goal)
+
+#print(getRandomAction(state,rM))
+
+
+#print(state[99])
+
+
+
+'''state = initState()
 rM = initRewardM(goal)
-
 print("init state: ",state)
 state = makeMove(state, 27, rM);
 print("new state: ",state)
 print("reward: ",getReward(state,1,rM))
-
+'''
 
 
 #np.set_printoptions(threshold=np.inf)
@@ -121,7 +162,6 @@ print("reward: ",getReward(state,1,rM))
 
 #print(state[3,1])
 #ok, now some fun Q learning things
-
 
 
 model = Sequential()
@@ -146,7 +186,7 @@ model.compile(loss='mse', optimizer=rms)
 #just to show an example output; read outputs left to right: up/down/left/right
 
 model.compile(loss='mse', optimizer=rms)#reset weights of neural network
-epochs = 3000
+epochs = 1000
 gamma = 0.975
 epsilon = 1
 batchSize = 40
@@ -156,20 +196,32 @@ replay = []
 h = 0
 for i in range(epochs):
     rM = initRewardM(goal)
-    state = initState() #using the harder state initialization function
+    state = initStateRand() #using the harder state initialization function
     status = 1
     #while game still in progress
+    t = 0
     while(status == 1):
         #We are in state S
         #Let's run our Q function on S to get Q values for all possible actions
+        print("+++++++++++++++++++++++++++++++++++++++++")
+        print("+++++++++++++++++++++++++++++++++++++++++")
         qval = model.predict(state.reshape(1,numStations*2), batch_size=1)
         if (random.random() < epsilon): #choose random action
-            action = np.random.randint(0,numStations)
+         #   action = np.random.randint(0,numStations)
+            action = getRandomAction(state,rM)
         else: #choose best action from Q(s,a) values
             action = (np.argmax(qval))
         #Take action, observe new state S'
+        print(state)
+        print(rM)
+        print("take action: ",action)
+        
         new_state = makeMove(state, action, rM)
+
+        print(new_state)
         #Observe reward
+
+        
         reward = getReward(new_state, action, rM)
         
         #Experience replay storage
@@ -190,7 +242,6 @@ for i in range(epochs):
                 old_state, action, reward, new_state = memory
                 old_qval = model.predict(old_state.reshape(1,numStations*2), batch_size=1)
                 newQ = model.predict(new_state.reshape(1,numStations*2), batch_size=1)
-                print(newQ)
                 maxQ = np.max(newQ)
                 y = np.zeros((1,numStations))
                 y[:] = old_qval[:]
@@ -207,8 +258,10 @@ for i in range(epochs):
             print("Game #: %s" % (i,))
             model.fit(X_train, y_train, batch_size=batchSize, nb_epoch=1, verbose=1)
             state = new_state
-        if reward == 10: #if reached terminal state, update game status
+        if reward == 10 or reward == 10.0: #if reached terminal state, update game status
             status = 0
+            print("VICTORY")
+        t += 1
         clear_output(wait=True)
     if epsilon > 0.1: #decrement epsilon over time
         epsilon -= (1/epochs)
@@ -219,7 +272,7 @@ for i in range(epochs):
 
 def testAlgo():
     i = 0
-    state = initState()
+    state = initStateRand()
 
     print("Initial State:")
     print(state)
@@ -249,9 +302,6 @@ def testAlgo():
 
 # In[30]:
 
-testAlgo()
-testAlgo()
-testAlgo()
-testAlgo()
+
 testAlgo()
 testAlgo()
