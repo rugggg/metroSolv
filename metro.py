@@ -30,7 +30,7 @@ def initStateRand():
     state[0,station] = 1
     state[1,goal] = 1
     return state
-
+ 
 
 def initRewardM(targetStation):
     ''' 
@@ -58,15 +58,13 @@ def initRewardM(targetStation):
     #editable
     #rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
     rM = np.genfromtxt('small.csv',delimiter=',')
+    
 
 
     #now, for every -1 in the target station column, change it to a 10
     
-    print(rM)
     col = rM[:,targetStation]
     row = rM[targetStation,:]
-    print("col ",targetStation,col)
-    print("row ",targetStation,row)
     
 
     for i in range (0,len(col)):
@@ -86,8 +84,6 @@ def isValidMove(state,action,rM):
     #remember the shape of our state means the top row is
     #just the 
     curStation = getCurrentStation(state)
-    print("validate move from ",curStation," to ",action)
-    print(rM[curStation,action])
     if(rM[curStation,action] == -10):
         return False
     else:
@@ -101,7 +97,6 @@ def makeMove(state, action, rM):
     #check to see if we can make the move
     if isValidMove(state,action, rM):
         #reset our current station
-        print("valid move")
         state[0] = np.zeros(numStations)    
         state[0,action] = 1
     return state
@@ -119,21 +114,32 @@ def getReward(state,action,rM):
 
 def getRandomAction(state,rM):
     #get all items in the row that are
-    print("gettin random action...")
-    print(state)
-    print(rM)
-
+    
     index = getCurrentStation(state)
-    print("current: ",index)
     actionSpace = []
     possible = rM[:,index]
-    print(possible)
     for i in range(0,len(possible)):
-        if(possible[i] != -10):
-            print("hit: ",i)
+        if(possible[i] != -10 and i != index):
             actionSpace.append(i)
     return random.choice(actionSpace)
 
+def getBestValidAction(state,rM):
+    print("*********************")
+    index = getCurrentStation(state)
+    print("Getting best valid action for: ",index)
+    actionSpace = []
+    possible = rM[:,index]
+    possible = rM[index,:]
+    print("possible: ",possible)
+    for i in range(0,len(possible)):
+        if(possible[i] != -10 and i != index):
+            actionSpace.append(i)
+    print("Action Space: ",actionSpace)
+    best = np.argmax(actionSpace)
+    print("Best: ",best);
+    print("RM:::",rM)
+    print("********************")
+    return best
 
 
 
@@ -165,11 +171,11 @@ print("reward: ",getReward(state,1,rM))
 
 
 model = Sequential()
-model.add(Dense(164, init='lecun_uniform', input_shape=(numStations*2,)))
+model.add(Dense(220, init='lecun_uniform', input_shape=(numStations*2,)))
 model.add(Activation('relu'))
 #model.add(Dropout(0.2)) I'm not using dropout, but maybe you wanna give it a try?
 
-model.add(Dense(100, init='lecun_uniform'))
+model.add(Dense(150, init='lecun_uniform'))
 model.add(Activation('relu'))
 #model.add(Dropout(0.2))
 
@@ -180,13 +186,8 @@ rms = RMSprop()
 model.compile(loss='mse', optimizer=rms)
 
 
-# In[14]:
-
-#model.predict(state.reshape(1,numStations), batch_size=1)
-#just to show an example output; read outputs left to right: up/down/left/right
-
 model.compile(loss='mse', optimizer=rms)#reset weights of neural network
-epochs = 1000
+epochs = 100
 gamma = 0.975
 epsilon = 1
 batchSize = 40
@@ -196,7 +197,7 @@ replay = []
 h = 0
 for i in range(epochs):
     rM = initRewardM(goal)
-    state = initStateRand() #using the harder state initialization function
+    state = initState() #using the harder state initialization function
     status = 1
     #while game still in progress
     t = 0
@@ -207,18 +208,23 @@ for i in range(epochs):
         print("+++++++++++++++++++++++++++++++++++++++++")
         qval = model.predict(state.reshape(1,numStations*2), batch_size=1)
         if (random.random() < epsilon): #choose random action
-         #   action = np.random.randint(0,numStations)
+            #action = np.random.randint(0,numStations)
+            #action = getBestValidAction(state,rM)
+            
             action = getRandomAction(state,rM)
         else: #choose best action from Q(s,a) values
+            #get indexs of possible actions
+            #HEY DOUG YOU ARE WORKING HERE
+
+            #select max of those
+            action = getBestValidAction
             action = (np.argmax(qval))
+            
         #Take action, observe new state S'
-        print(state)
-        print(rM)
         print("take action: ",action)
         
         new_state = makeMove(state, action, rM)
 
-        print(new_state)
         #Observe reward
 
         
@@ -270,9 +276,14 @@ for i in range(epochs):
 
 # In[16]:
 
+losess = 0 
+
+wins = 0 
+
+
 def testAlgo():
     i = 0
-    state = initStateRand()
+    state = initState()
 
     print("Initial State:")
     print(state)
@@ -281,7 +292,10 @@ def testAlgo():
     while(status == 1):
         qval = model.predict(state.reshape(1,numStations*2), batch_size=1)
         print(qval)
-        action = (np.argmax(qval)) #take action with highest Q-value
+        #action = (np.argmax(qval)) #take action with highest Q-value
+        action = getBestValidAction(state,rM)
+        
+        #take action with highest Q-value
         print('Move #: %s; Taking action: %s' % (i, action))
         state = makeMove(state, action, rM)
         print(state)
@@ -291,9 +305,12 @@ def testAlgo():
             status = 0
             print("Reward: %s" % (reward,))
             print ("___________VICTORY_________")
+            return 1
         i += 1 #If we're taking more than 10 actions, just stop, we probably can't win this game
         if (i > 10):
             print("Game lost; too many moves.")
+            print("______FAILURE_____");
+            return 0
             break
 
 
@@ -303,5 +320,11 @@ def testAlgo():
 # In[30]:
 
 
-testAlgo()
-testAlgo()
+total = 0
+numTests = 10
+for i in range(0,numTests):
+    total += testAlgo()
+
+
+print("Wins: ",total)
+print("Losses: ",numTests-total)
