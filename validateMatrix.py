@@ -17,8 +17,9 @@ def validateMatrix(m):
                     print("    row: ",m[i,j])
                     print("    col: ",m[j,i])
 
-tube = np.genfromtxt('londonUnderground.csv',delimiter=',')
+#tube = np.genfromtxt('londonUnderground.csv',delimiter=',')
 #tube = np.genfromtxt('small.csv',delimiter=',')
+tube = np.genfromtxt('medium.csv',delimiter=',')
 
 
 print(tube)
