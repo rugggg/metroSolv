@@ -10,10 +10,10 @@ from keras.optimizers import RMSprop
 from IPython.display import clear_output
 
 #Number of metro stations
-numStations = 7 #this is for the small set
+numStations = 10 #this is for the small set
 #numStations = 62 #this is for the london underground
 
-goal = 6
+goal = 8
 #def our states, we have numStations possible states with each station
 #having 1 - numStations possible actions
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
@@ -66,7 +66,8 @@ def initRewardM(targetStation):
     #ok but let's actually use a csv file, so it can be larger and more
     #editable
     #rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
-    rM = np.genfromtxt('small.csv',delimiter=',')
+    #rM = np.genfromtxt('small.csv',delimiter=',')
+    rM = np.genfromtxt('medium.csv',delimiter=',')
     
     #now, for every -1 in the target station column, change it to a 10
 
