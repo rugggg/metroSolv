@@ -10,17 +10,17 @@ from keras.optimizers import RMSprop
 from IPython.display import clear_output
 
 #Number of metro stations
-numStations = 7
-#numStations = 62
+#numStations = 7 #this is for the small set
+numStations = 62 #this is for the london underground
 
-goal = 3
+goal = 6 
 #def our states, we have numStations possible states with each station
 #having 1 - numStations possible actions
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
 #for now, the target station is D. We will start at A
 def initState():
     state = np.zeros((2,numStations))
-    state[0,4] = 1 #place player at station 1 for simplicity
+    state[0,3] = 1 #place player at station n
     state[1,goal] = 1 #place goal
     return state
 
@@ -65,11 +65,12 @@ def initRewardM(targetStation):
     '''
     #ok but let's actually use a csv file, so it can be larger and more
     #editable
-    #rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
-    rM = np.genfromtxt('small.csv',delimiter=',')
+    rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
+    #rM = np.genfromtxt('small.csv',delimiter=',')
 
-    #now, for every -1 in the target station column, change it to a 10
     
+    #now, for every -1 in the target station column, change it to a 10
+
     col = rM[:,targetStation]
     row = rM[targetStation,:]
     
@@ -162,13 +163,17 @@ def getBestValidAction(state,prev,qval,rM):
     #now, we need to get the Q value for each one, and return 
     #what move to make based on that
 
-    best = -10000 #arbitrarily small number 
+    best = 0 #arbitrarily small number 
+    bestQ = 0
     print("comp to QVAL: ",qval)
     for i in range(0, len(actionSpace)):
-        if(qval[0:,actionSpace[i]] > best):
+        print("---Action Space Val: ",actionSpace[i])
+        print("---QVal: ",qval[0:,actionSpace[i]])
+        if(qval[0:,actionSpace[i]] > bestQ or bestQ == 0):
             best = actionSpace[i]
-
-    print("Best: ",best);
+            bestQ = qval[0:,best]
+    print("Best: ",best)
+    print("Best QVal: ",qval[0:,best])
     print("********************")
     return best
 
@@ -191,7 +196,7 @@ model.compile(loss='mse', optimizer=rms)
 
 
 model.compile(loss='mse', optimizer=rms)#reset weights of neural network
-epochs = 100
+epochs = 1000
 gamma = 0.975
 epsilon = 1
 batchSize = 40
@@ -337,7 +342,7 @@ def testAlgo():
             print ("___________VICTORY_________")
             return 1
         i += 1 #If we're taking more than 10 actions, just stop, we probably can't win this game
-        if (i > 20):
+        if (i > 60):
             print("Game lost; too many moves.")
             print("______FAILURE_____");
             return 0
