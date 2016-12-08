@@ -10,10 +10,10 @@ from keras.optimizers import RMSprop
 from IPython.display import clear_output
 
 #Number of metro stations
-#numStations = 7 #this is for the small set
-numStations = 62 #this is for the london underground
+numStations = 7 #this is for the small set
+#numStations = 62 #this is for the london underground
 
-goal = 6 
+goal = 6
 #def our states, we have numStations possible states with each station
 #having 1 - numStations possible actions
 #row being station A row2 being at station B, row3 being at station C, and row 4 being at station D. A 0 means no direct connection, 1 means connection, 10 means action results in getting to the target station
@@ -65,9 +65,8 @@ def initRewardM(targetStation):
     '''
     #ok but let's actually use a csv file, so it can be larger and more
     #editable
-    rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
-    #rM = np.genfromtxt('small.csv',delimiter=',')
-
+    #rM = np.genfromtxt('londonUnderground.csv',delimiter=',')
+    rM = np.genfromtxt('small.csv',delimiter=',')
     
     #now, for every -1 in the target station column, change it to a 10
 
@@ -196,7 +195,7 @@ model.compile(loss='mse', optimizer=rms)
 
 
 model.compile(loss='mse', optimizer=rms)#reset weights of neural network
-epochs = 1000
+epochs = 100
 gamma = 0.975
 epsilon = 1
 batchSize = 40
@@ -210,7 +209,8 @@ for i in range(epochs):
     rM = initRewardM(goal)
     print("RM::::\n")
     print(rM)
-    state = initState() #using the harder state initialization function
+    #state = initState() #using the deterministic
+    state = initStateRand() #using the random start
     prev = getCurrentStation(state)
     status = 1
     #while game still in progress
@@ -310,6 +310,7 @@ wins = 0
 def testAlgo():
     i = 0
     state = initState()
+    state = initStateRand()
 
     print("Initial State:")
     print(state)
@@ -347,14 +348,10 @@ def testAlgo():
             print("______FAILURE_____");
             return 0
             break
-
-
-
 total = 0
-numTests = 1
+numTests = 100
 for i in range(0,numTests):
     total += testAlgo()
-
 
 print("Wins: ",total)
 print("Losses: ",numTests-total)
